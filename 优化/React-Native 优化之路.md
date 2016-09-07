@@ -1,5 +1,20 @@
 # React-Native 优化之路 #
 
+
+### 布局篇 ###
+
+
+从 ReactNative的设计结构知道，使用 JS（JSX） 代码编写类似 html 的元素组装的代码，实际实现的是一套 Virtual Dom的虚拟的js数据结构，然后通过 JSBridge 和 native 通信，根据设置的属性值，生成android 原生的 View。android上的JS运行环境是，webkit.org 的jsc.so。从UI角度考虑，一段js代码到生成原生UI界面的过程如下：
+
+
+
+首先从 JS 端考虑，这个渲染过程的优化，JS端的渲染流程如下图：
+
+
+由于 ReactNative 组件开发的思想非常好用
+
+
+
 ### 使用初始化 getLaunchOptions()方法 ###
 
 使用初始化 getLaunchOptions()方法，返回初始化数值，减少一次 render() 方法的调用。
@@ -46,3 +61,7 @@ JS端的代码，直接通过 this.props.你在bundle传递的key值，示例代
 
 运行结果显示：
 //运行结果.png
+
+
+
+tip：然而在实际开发中，数据比较复杂，多为复杂的json对象，使用 bundle 传递这种复杂的数据，效率并不高，而且对代码编写来说，尤为繁琐，我争寻找更好的解决办法。这里一个巧妙的办法是，将显示 loading交给 React 去完成，然后网络请求完成之后，则通知 react 更新视图，或者说网络请求也在 react 中完成，因为 react 也是封装了 okhttp 的。
