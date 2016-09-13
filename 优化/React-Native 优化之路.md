@@ -1,20 +1,25 @@
-# React-Native 优化之路 #
+# React-Native 优化之路（布局篇） #
 
 
 ## 布局篇 ##
 
 
-从 ReactNative的设计结构知道，使用 JS（JSX） 代码编写类似 html 的元素组装的代码，实际实现的是一套 Virtual Dom的虚拟的js数据结构，然后通过 JSBridge 和 native 通信，根据设置的属性值，生成android 原生的 View。android上的JS运行环境是，webkit.org 的jsc.so。从UI角度考虑，一段js代码到生成原生UI界面的过程如下：
+从 ReactNative的设计结构知道，使用 JS（JSX） 代码编写类似 html 的元素组装的代码，实际实现的是一套 Virtual Dom的虚拟的js数据结构，然后通过 JSBridge 和 native 通信，根据设置的属性值，生成android 原生的 View。android上的JS运行环境是，webkit.org 的jsc.so。从UI角度考虑，一段js代码到生成原生UI界面的过程如下（这里不涉及JS和Java的复杂通信模型）：
+
+//渲染.png
 
 
+从这里我们可以知道，其实，JS端对应的控件，基本都是封装的原生控件，所以无论是优化还是使用，我们都可以从原生角度考虑和出发。
 
-首先从 JS 端考虑，这个渲染过程的优化，JS端的渲染流程如下图：
 
 #### 改变了 props或者states ####
 
-一个 React Component 的生命周期方法如下图，它总共经历了三个状态 Mounting，Updating，Unmounted。
+一个React Component 有自己的生命走起，其生命周期方法如下图，它总共经历了三个状态 Mounting，Updating，Unmounted。
 
 // 组件生命周期.png
+
+
+我们开发场景，基本涉及这三个后场景，从android 原生优化的角度，我们可以做一些优化探讨。
 
 **接收新的 props**
 
@@ -57,8 +62,6 @@ tip:ES6 中在 constror 中初始化 state 语法为
             return false;
         }
     } 
-
-**-**
 
 
 #### 使用初始化 getLaunchOptions()方法 ####
@@ -150,20 +153,68 @@ tip：然而在实际开发中，数据比较复杂，多为复杂的json对象�
 
 #### 优化 ListView(JS端) ####
 
-React Native 中ListView 采用的是 ScrollView 实现的，不得不说，这真的是一个性能瓶颈的问题。但是诸如 ListView 的控件，在实际开发中使用频率是非常高的，在 weex 中，weex使用的是 RecycleView 实现的，所以在一些情况上，性能表现要好上很多。我们先来简单的看一段使用 ListView 的示例代码：
+React Native 中ListView 采用的是 ScrollView 实现的，不得不说，这真的是一个性能瓶颈的问题。但是诸如 ListView 的控件，在实际开发中使用频率是非常高的，在 weex 中，weex使用的是 RecycleView 实现的，所以在一些情况上，性能表现要好上很多。
+
+**简单的使用**
+
+最简单的使用 ListView 如下，这里的关注点放在某些方法上：
+
+                <ListView
+                    dataSource={this.state.ds}
+                    renderRow={(rowData)=>this._renderRow(rowData)
+                    }
+                ></ListView>
+
+这里只是用了 两个属性，一个是 dataSource,这里需要传递的是一个 ListView.DataSource 实例，关于 ListView.DataSource 的描述，参考下面，至于这里，希望各位同学避免把 ListView.DataSource 和 ListView.ListViewDataSource 混淆。第二个属性是，renderRow，返回一个 renderable 对象，具体的写法参考代码。
+
+**ScrollView的源码的分析**
+
+ScrollView的源码位置位于 node_modules/react-native\Libraries\Components\ScrollView\ScrollView.js 我在 ScrollView 目录下惊喜的发现了：
+
+
+我似乎看到了 RecycleView 身影。
+
+
+
 
 
 
 通过阅读 API 我们可以找出以下关注点：
 
+#### 1.避免使用自带 function 生成头部和底部 ####
+
+避免使用 renderFooter() renderHeader() 函数去生成头部和底部，因为每次render，头部和底部都会重新生成。
+
+#### 2.removeClippedSubviews 属性 ####
+
+使用contentContainerStyle属性，contentContainerStyle 是继承自 ScrollView 的属性，为每行的视图，添加行样式，在contentContainerStyle的style中添加属性overflow:'hidden'，之后设置 removeClippedSubviews 属性为 true，。设置为 removeClippedSubviews 为 true 可以提高滑动性能。默认状态也是true的，源码中可以看到如果这个属性是 undefined 的话，自动赋值为 true，但是在 ios 默认没有 overflow:'hidden' 样式，所以需要添加样式。（这里其实是设置 ScrollView 的 item的属性）
+
+removeClippedSubviews 属性影响着
+
 
 在尝试有优化工作前，我们尝试按照之前 android 原生上的 ListView 优化经验，去尝试优化 JS代码。
 
 
+ListView 的源码分析：ListView 的源码位于 项目根目录\node_modules\react-native\Libraries\CustomComponents\ListView.注意不同版本的 react-native 源码部分细节多多少少存在差异。
 
-#### Style样式优化 ####
+
+小说明：Java开发或者android开发的同学都会对ListView.ListViewDataSource()构造函数传递的 params 非常疑惑，其实这里是JS函数可选参数的语法，在Java中也有支持方法的可变参数，例如以下代码：
+
+    public int add(int... args) {
+        int re = 0;
+        for (int i = 0; i < args.length; i++) {
+            re += args[i];
+        }
+        return re;
+    }
+
+然而 JS 的可变参数的语法和 JAVA 的可选参数语法细节上差异比较大。JavaScript函数可以以任意数目的参数来调用， 而不管函数定义中的参数名字有多少个。由于函数是宽松类型的，它就没有办法声明所期望的参数的类型，并且，向任何函数传递任意类型的参数都是合法的。所以基于这点，我们可能要改变一下在 Java 上的阅读习惯和理解习惯。
 
 
-## 掉帧现象和Event事件 ##
 
-等待调试机到来中....
+#### 其他小技巧 ####
+
+- 减少 View 的嵌套，React Native 建议不要超过五层以上的 View 嵌套。
+- 如果最外层的View是为了设置布局，可以将 View 的 collapsable 设为 true，这样的话 React Native 会执行一个布局优化，将这个 View 在原生的布局树中移除。
+- 尽量少的使用 shadow。shaodow 可能引起一些奇怪的问题，同时也会引起布局发生意想不到的差异。
+- 在 React Component 的 unmounting 状态中，施放资源和内存，例如移除 timer之类的操作（即可以避免内存泄漏，又可以回收内存），对应的函数是 componentWillUnMount()
