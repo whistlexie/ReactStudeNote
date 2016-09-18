@@ -101,3 +101,4 @@ UIManagerModule 的代理类，UIManagerModule 类则是保留 Native View 层�
 这里的问题是，第一次 Create 是怎么调用 dispatchViewUpdates()方法的呢？我只在 UIImplementation的 updateRootNodeSize()方法里面看到了调用这个方法，实际上第一次创建的时候也会调用，仔细找了一下，暂时还是没有找到回调机制。
 
 
+
