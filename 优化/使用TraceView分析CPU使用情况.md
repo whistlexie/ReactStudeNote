@@ -103,10 +103,10 @@ React 页面：
 
 然而 Native 页面消耗CPU的主要方法却是：
 
-BitmapFactory.decodeStream()方法，执行3次，总共39毫秒。
-ArtMethod.getMethodName()方法。执行1487次，总共39毫秒。
-资源获取，style 获取，执行907次，总共32毫秒
-TextView 构造方法
+1. BitmapFactory.decodeStream()方法，执行3次，总共39毫秒。
+1. ArtMethod.getMethodName()方法。执行1487次，总共39毫秒。
+1. 资源获取，style 获取，执行907次，总共32毫秒
+1. TextView 构造方法
 
 
 简单的总结一下：
@@ -114,6 +114,8 @@ TextView 构造方法
 DirectByteBuffer 类是Java nio框架里面，一个用于字节缓存的类，在文件读取和网络操作中，这里的缓存是写在 C heap上的，所以速度非常之快。
 Handler 的 handleCallBack()方法，
 
+
+具体的 Prof 文件下载地址
 
 
 
